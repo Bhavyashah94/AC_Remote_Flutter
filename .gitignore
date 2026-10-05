@@ -43,3 +43,25 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# PlatformIO & Embedded Firmware
+**/.pio/
+**/.pioenvs/
+**/.piolibdeps/
+.clang_complete
+.gcc-flags.json
+
+# Python & Backend runtime
+__pycache__/
+*.py[cod]
+*$py.class
+*.db
+*.sqlite3
+.env
+venv/
+ENV/
+
+# Development Scratch & Temporary Files
+scratch/
+ventra-smart-ac.png
+
