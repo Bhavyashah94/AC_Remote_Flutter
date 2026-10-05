@@ -42,6 +42,7 @@ class _TemperatureDialState extends State<TemperatureDial> with TickerProviderSt
   Offset _lastTouchPosition = Offset.zero;
   bool _isDragging = false;
   late double _currentTemp;
+  double _dialSize = 340.0;
 
   @override
   void initState() {
@@ -86,7 +87,9 @@ class _TemperatureDialState extends State<TemperatureDial> with TickerProviderSt
   }
 
   void _updateOverscroll() {
-    if (_snapAnimation != null && mounted) setState(() => _wheelRotation = _snapAnimation!.value);
+    if (_snapAnimation != null && mounted) {
+      setState(() => _wheelRotation = _snapAnimation!.value);
+    }
   }
 
   void _onPanStart(DragStartDetails details) {
@@ -95,7 +98,7 @@ class _TemperatureDialState extends State<TemperatureDial> with TickerProviderSt
     _inertiaController.stop();
     _snapAnimation?.removeListener(_updateOverscroll);
 
-    const center = Offset(180, 180);
+    final center = Offset(_dialSize / 2, _dialSize / 2);
     _lastTouchPosition = details.localPosition;
     _lastAngle = math.atan2(_lastTouchPosition.dy - center.dy, _lastTouchPosition.dx - center.dx);
     _dragStartRotation = _wheelRotation;
@@ -103,13 +106,17 @@ class _TemperatureDialState extends State<TemperatureDial> with TickerProviderSt
   }
 
   void _onPanUpdate(DragUpdateDetails details) {
-    const center = Offset(180, 180);
+    final center = Offset(_dialSize / 2, _dialSize / 2);
     _lastTouchPosition = details.localPosition;
     final currentAngle = math.atan2(_lastTouchPosition.dy - center.dy, _lastTouchPosition.dx - center.dx);
 
     double deltaAngle = currentAngle - _lastAngle;
-    while (deltaAngle > math.pi) deltaAngle -= 2 * math.pi;
-    while (deltaAngle < -math.pi) deltaAngle += 2 * math.pi;
+    while (deltaAngle > math.pi) {
+      deltaAngle -= 2 * math.pi;
+    }
+    while (deltaAngle < -math.pi) {
+      deltaAngle += 2 * math.pi;
+    }
     _lastAngle = currentAngle;
 
     setState(() {
@@ -143,8 +150,10 @@ class _TemperatureDialState extends State<TemperatureDial> with TickerProviderSt
       _snapController.forward(from: 0.0);
       widget.onInteractionEnd();
     } else {
-      double rx = _lastTouchPosition.dx - 180; double ry = _lastTouchPosition.dy - 180;
-      double vx = details.velocity.pixelsPerSecond.dx; double vy = details.velocity.pixelsPerSecond.dy;
+      double rx = _lastTouchPosition.dx - (_dialSize / 2);
+      double ry = _lastTouchPosition.dy - (_dialSize / 2);
+      double vx = details.velocity.pixelsPerSecond.dx;
+      double vy = details.velocity.pixelsPerSecond.dy;
       double r2 = rx * rx + ry * ry;
 
       if (r2 > 0) {
@@ -170,21 +179,88 @@ class _TemperatureDialState extends State<TemperatureDial> with TickerProviderSt
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          AnimatedContainer(duration: const Duration(milliseconds: 500), width: 300, height: 300, decoration: BoxDecoration(shape: BoxShape.circle, boxShadow: [BoxShadow(color: widget.accentColor.withValues(alpha: 0.12), blurRadius: 80, spreadRadius: 15)])),
-          Text('${_currentTemp.toInt()}', style: TextStyle(fontSize: 110, fontWeight: FontWeight.w200, color: _overscroll != 0 ? widget.accentColor : Colors.white, height: 1.0)),
-          GestureDetector(
-            behavior: HitTestBehavior.opaque, onPanStart: _onPanStart, onPanUpdate: _onPanUpdate, onPanEnd: _onPanEnd,
-            child: SizedBox(
-              width: 360, height: 360,
-              child: CustomPaint(painter: EndlessWheelPainter(rotation: _wheelRotation, accentColor: widget.accentColor, isOverscrolling: _overscroll != 0)),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final availableWidth = constraints.maxWidth.isFinite ? constraints.maxWidth : 340.0;
+        final dialSize = math.min(availableWidth, 340.0);
+        _dialSize = dialSize;
+
+        return Center(
+          child: SizedBox(
+            width: dialSize,
+            height: dialSize,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                // Background ambient halo glow
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 500),
+                  width: dialSize * 0.8,
+                  height: dialSize * 0.8,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: widget.accentColor.withValues(alpha: 0.18),
+                        blurRadius: 90,
+                        spreadRadius: 20,
+                      )
+                    ],
+                  ),
+                ),
+
+                // Central Temperature Readout with Degree Symbol
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${_currentTemp.toInt()}',
+                      style: TextStyle(
+                        fontSize: dialSize * 0.28,
+                        fontWeight: FontWeight.w200,
+                        color: _overscroll != 0 ? widget.accentColor : Colors.white,
+                        letterSpacing: -2,
+                        height: 1.0,
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8.0, left: 4.0),
+                      child: Text(
+                        '°C',
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w600,
+                          color: widget.accentColor.withValues(alpha: 0.8),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+
+                // Rotary Wheel Gesture Canvas
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onPanStart: _onPanStart,
+                  onPanUpdate: _onPanUpdate,
+                  onPanEnd: _onPanEnd,
+                  child: SizedBox(
+                    width: dialSize,
+                    height: dialSize,
+                    child: CustomPaint(
+                      painter: EndlessWheelPainter(
+                        rotation: _wheelRotation,
+                        accentColor: widget.accentColor,
+                        isOverscrolling: _overscroll != 0,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
