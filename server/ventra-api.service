@@ -1,0 +1,20 @@
+[Unit]
+Description=Ventra Universal AC Hub Backend API (FastAPI & MQTT Bridge)
+After=network.target docker.service
+Wants=docker.service
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/home/ubuntu/ventra
+Environment=PYTHONUNBUFFERED=1
+Environment=DB_PATH=/home/ubuntu/ventra/ventra.db
+Environment=MQTT_BROKER=127.0.0.1
+Environment=MQTT_PORT=1883
+ExecStart=/home/ubuntu/ventra/venv/bin/uvicorn app:app --host 0.0.0.0 --port 8000
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
